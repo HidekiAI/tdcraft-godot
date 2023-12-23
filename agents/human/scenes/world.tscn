@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3 uid="uid://bfrci51mm4r2q"]
+
+[ext_resource type="PackedScene" uid="uid://n81f0h6i7k13" path="res://scenes/player_node.tscn" id="1_dfrmq"]
+[ext_resource type="PackedScene" uid="uid://dq2hjfdb68ky5" path="res://scenes/frog_node.tscn" id="2_hbb2e"]
+[ext_resource type="PackedScene" uid="uid://ciy33tehw25fa" path="res://scenes/fox_node.tscn" id="3_3tw0v"]
+
+[node name="world" type="Node2D"]
+
+[node name="SpritesNode" type="Node" parent="."]
+
+[node name="Player1" parent="SpritesNode" instance=ExtResource("1_dfrmq")]
+
+[node name="FrogNode" parent="SpritesNode" instance=ExtResource("2_hbb2e")]
+
+[node name="FoxNode" parent="SpritesNode" instance=ExtResource("3_3tw0v")]
+
+[node name="Player2" parent="SpritesNode" instance=ExtResource("1_dfrmq")]

@@ -1,0 +1,26 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2021"
+
+# when developing both client and server in same project, it's good idea to make sure
+# on both sides, we did not break the protobuf, hence we want to compile (but not run)
+# the client side as well to make sure the API remains stable...
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[[bin]]
+name = "agent-rsrl"
+path = "../agents/rsrl-agent/lib.rs"
+
+[[bin]]
+name = "agent-rust-rl"
+path = "../agents/rust-rl-agent/lib.rs"
+
+# We're using tonic as the gRPC method
+[dependencies]
+tonic = "0.5"
+prost = "0.9"
+tokio = { version = "1", features = ["full"] }
