@@ -1,2 +1,52 @@
 # tdcraft-godot
-Tower Defense + S***craft like game with client (control and view) in Godot and server in Rust.
+Tower Defense + S\*\*\*craft like game with client (control and view) in Godot and server in Rust.
+
+
+## Technial Design Criterias
+* State (input) queries and action (output) commands per entity/unit - this is mainly to allow human agent to be swappable to reinforcement learning agents
+* Clients - Control and View are (for human agents) in Godot (we only care about Action per unit); but really, it cn be anything (even text based view, etc) what really counts is the action resulting from states
+* Server - offers API for queries of states per unit, and API for actions per unit, it will most likely be written in Rust integrating with RSL and Protobuf
+* Thread vs Process: The client/server pattern is multi-processor design rather than multi-thread design; the separation of having server as another process allow scaling horizontally rather than vertically
+* Messages - where/when possible, always attempt to combine/bundle multiple messages in single response for it will help significantly on performances
+* Server running on standlone will prefer to use named-pipes rather than loopback, and if on remote, most likely will be TCP/IP for keepalive but pub-sub will be multicasted for global data to avoid redundancies on server to reply per-client for same messages
+    * If the client side misses out on such multicast, just assumes that client wasn't paying attention and assume it should attempt to listen more carefully :)
+* Client inquiries:
+    * Per unit inquries are based on radius relative to current position so that the noise over the network is only relative to per client
+* Client multicasted global data:
+    * Keep this as small as possible; one nice thing about Protobuf is that it has limits on data size so with that in mind, hopefully implementation will attempt to keep the disciplines
+* Data usages per agents: For player agents, the data received can and should be able to update the mini-map, opponent locations in the visible area, etc.  For R.L. agents, it's basically headless, and may discard some information which it does not need or not, it will be up to the M.L. to learn from it of what was/is useful.
+
+## Game Design
+* Terminologies used:
+    * Firstly, for clarifications, the term "CPU" (or "CPU agents") are used to indicate that the action (command given to each units) is by non-human agent (i.e. no mouse or keyboard is used), versus "A.I." are used to indicate the agent which controls the actions of the units.
+    * Agents are either M.L. controller or mouse point-and-click (and keyboard) human controlled system, in which whther it is PvP or PvN it's basically Agent-versus-Agent
+* View is really not too relavent in the sense of whether it is top-down, isometric, etc.  For that is just a conviniences for human player visuals to quickly comprehend the current state.  From the CPU's point of view, it's blind in the sense that it cannot see the minimaps (unless we use OpenCV and other visual analysis) and all it cares/understands is what is on what tile.  From data point of view, everything is tile/grid based.  Perhaps in the future, it can be hexagon-based but for speed, it's tile-based.  More than one unit can reside on a tile (i.e. a turret with upgrade devices and a air-bot hovering above it), but that can hopefully be some attribute set per unit (i.e. ground-turret cannot be stacked on top of anti-air turret, but ground-turrent can have an upgradable device tacked on top of it that can aim at air units as well, etc)
+* Upgrading is based on stacking upgrades on existing unit on that cell, or possibly, pror to placing into that cell/tile, one must "build" the unit with upgrades attached.  That again, is all just visual for player's entertainment and from CPU's point, what counts is what gets occupied on the cell/tile (the final result).
+* Everything (turrets as well as bots (ground and air)) have XP, and either by defending or attacking, the XP goes up; in which levels are gained;  Up to N items can be carried over to next stage (i.e. for beginning level, up to 5, then for mid-game, it goes up to 10, or perhaps buy upgrade container that does +3) and will remain preistent in which player/agents can decide to bring with them everywhere.
+* There are no penalties (i.e. loose level or XP) if the bot or item dies/breaks/exlodes/etc, it just means that it cannot be used for the rest of that current stage, and can be repaired back to original state at beginning of next level.
+* At end of each level, player/agents can decide to keep or replace (maintenance) on currently available (i.e 5) slots.
+* At begging of each level, player/agents can decide to upgrade/buy/modify bots and turrets of each slots.
+* In order to upgrade turrets and bots, one needs some monetary system (i.e.  gold, yen, etc), in which money are awarded based on stage clear.  Stage clearance will begin with contracts of how much they will get paid upon clearing that stage.  With that payment, one can choose to upgrade, repair, etc or not spend at all prior to each stage.
+* One can request for loans on entry of the stage up to 50% of the stage clearing payments.  For example, the stage will pay 10,000 GP (gold points) for clearing, hence player/agent can choose up to 5K prepaid.  If pay-half now, pay-half later/completion is opted out for lump-sum payment on clearing the stage, player/agent will get paid N% bonus (i.e. perhaps 25%) or choose XP modifier (i.e. gain 5% more XP per turrets and bots)
+* If the player/agent dies after they've already taken (up to 50%) partial payments, the reward on the stage will be what is left over, and player/agent will not be given the option for prepayment to avoid exploits.
+* If player chooses to got to another stage after they took partial payment and purposely died on another stage, their reputation will affect the XP as penalties.
+* Player/agent always starts off with their container slots filled on a fresh new account.  For example, the game server is set to have new player start with 5 slots, they will receive 2 turrets, 1 repair bot, 1 air bot, and 1 ground bot.  Player/agent will always maintain the minimum of the set slot counts.  If the player/agent in later level gains a container that can hold 50% more (i.e. from 5 slots now 8 slots), they can keep the new space unoccupied, as well as add/remove, as long as they remain the minimum of the server config slot count.
+* Stage difficulties (as well as payments, XP, rewards, etc) are based off of the average of the top X (i.e. 3) levels of the bots and turrets the player/agent holds.  If the sserver is configured with 1 minimum slots, and the player/agent has 5 slots and holds only 2 (meeting the requirement of server minimum of 1 slot), then the average is based on just the 2 rather than having a place holder of 3rd slot to be Level=0.  This way, player/agent does not attempt to make the level feel easier by having 1 high level slot and 2 Level1 slot to lower the average down for exploiting easier stage.
+* Bots do not get "smarter" (bots and turrets do not have any A.I.) to make sure player and CPU agents are always only accounted for "action" command instructing each unit.  Pathfinding for a ground-bots or how a turret chooses which unit to target are the same whehter you're a human or CPU agent.
+* This would then mean that competion between CPU and player agent is mainly based on how quickly one can perceive/visualize the current state and how quick one can send for action.  Therefore, the difficulties set is based on delay-response modifier.  The modifier is also adjusted based on number of units the CPU has to control.  For example, it will be quite difficult (and unmanageable) for human agent to control (even with select all to group) 100 units in single action, while for a CPU, that's just as quick as iterating per unit as quick as the power of CPU can handle (most likely, via fork-and-join in parallel blocks of units), hence the server will maintain average of how many units the human-agent handles per second, and use that to "slow down" the CPU agent.  When it is just CPUs vs CPUs (no human agents are involved) the simulation should run at full-throttle without any delay (i.e. at slow_down_factor=1.0)
+* When starting a new player (whether the user is human or CPU is not relavent), ideally, it can be based off of server predefined (via config) SP (skill points, not spell points) to start with, in which N units are randomly distributed with HP, etc.
+* It's undecided other than HP (health points), XP (experience points), SP (skill points), STR (strength), AG (agility), what else are needed.  Here are some thoughts:
+    * HP - we need health to determine when each units (i.e. turrets and bots) are destroyed, also since there will be healer, healer needs to know when to start healing and when to stop healing
+    * XP - we need this to level up each units
+    * SP - this is for upgrading units (mainly to adjust/modify attributes such as HP of +5%)
+    * STR - how much damage it can shave off the target's HP - are there diff betwen STR and DMG?
+    * AG - how quickly (not just max accelerations and max velocity, but cooldown time) it can react
+    * WIDTH - how many tiles it occupies in a row
+    * HEIGHT - how many tiles it occupies in a column
+    * ACC - max acceleration (this is 0 for turrets and buildings, but who knows, would be neat to see slow moving fortress)
+    * VEL - max velocity for moving units (such as bots), but can be used for factory belts that moves minerals at X-units-per-tile (i.e. rather than "4 copper can occupie this tile using this belt", does it make more sense of "1 copper can move 0.25 tiles per second since this belt is rated at 1 tile/sec"?)
+    * ENV - if AIR - ignores most obstacles or not, if WATER, can float, etc...
+    * GP - gold points (unsure if this fictional world uses gold as monetary system, but for lack of my imaginations, it is "gold" for now, but if not, then we'll use YEN)
+    * All of the above are all mutable, as LEVEL goes up, max HP will go up, or at the end of the stage, XP gained will be of X value, max STR may go up based on buff/debuff attributes, WIDTH may get wider with upgrades, etc.
+* Environment - Probably too ambitious to deal with PvE (i.e. earthquakes that damages turrets on both self and opponents), so for now, only thing that agents have to deal with is whether the tile is obstacle, or perhaps sluggist/slowdown to walk on; minerals should be baked onto the map, and possibly based on difficulties, whether the minerals depletes (i.e. S\*\*\*craft, Factorio) or is infinite resource (i.e. Mindustry)
+*
