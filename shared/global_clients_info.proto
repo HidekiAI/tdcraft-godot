@@ -1,0 +1,13 @@
+// This is a send-only (on server) and receive-only (on client) channel.
+// It is on a UDP multicast-like (uses pub-sub unicast to each member in the group) channel in which, 
+// all clients should listen to get
+// information about the server as well as states/status of other clients that
+// server knows about (that can be shared with other clients).
+// The UDP address and port is specified in the config file for the server,
+// but for client side, the port (group) is returned in the register response.
+// If the client is listening on another port that it wasn't assigned in register
+// response, client will basically be receiving garbage since the KEY was given
+// to the client in register-response to decrypt the message.
+// The client should listen on the port specified in the register response so that
+// it can decrypt the message and get the information about the server and other
+// clients.

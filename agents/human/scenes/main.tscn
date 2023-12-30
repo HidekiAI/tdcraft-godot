@@ -8,18 +8,18 @@
 script = ExtResource("1_l6naf")
 
 [node name="Play" type="Button" parent="."]
-offset_left = 80.0
-offset_top = 96.0
-offset_right = 121.0
-offset_bottom = 127.0
+offset_left = 94.0
+offset_top = 56.0
+offset_right = 448.0
+offset_bottom = 224.0
 text = "Play"
 script = ExtResource("4_qu0io")
 
 [node name="Quit" type="Button" parent="."]
-offset_left = 168.0
-offset_top = 96.0
-offset_right = 210.0
-offset_bottom = 127.0
+offset_left = 114.0
+offset_top = 269.0
+offset_right = 395.0
+offset_bottom = 434.0
 text = "Quit"
 script = ExtResource("5_ftryb")
 

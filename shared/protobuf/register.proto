@@ -1,0 +1,8 @@
+// Results/response/purpose of registration consists of:
+// * it informs client that upon response from server (with what ABSOLUTE UTC0/GMT time to expect heartbeat by) when to send its first heartbeat message
+// * It informs client which UDP multicast-like channel and port to listen to multicast messages from server
+// * Server will assign decryption session-KEY along with the multicast channel and port to listen to (a very primitive form of
+// making UDP channel privatized to group only those who are registered to it)
+// * The "session KEY" will expire after a certain amount of time (to be determined by server), in which all clients must re-register
+// to join a new session (in which there are no garauntees that other clients that were in same session will be in the new session)
+// * 

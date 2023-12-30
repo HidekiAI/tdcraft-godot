@@ -1,0 +1,72 @@
+// Keepalive request/response for the purpose of heartbeats which client side is responsible for every X seconds
+// heartbeat intervals are defined in the config file on the server side, in which the client on it's
+// initial connection, will be sent the heartbeat interval and will be responsible for sending a keepalive
+// For more deatils on the interval and configs, see  register.proto for it's request/response
+// NOTE: In some implementations, the server will accept ANY messages from the client as a heartbeat
+// as long as the implementations are TCP/IP (stream) based, since as long as there are some small data
+// trickling through the pipe, the connection is still alive (just being connected but 0-bites being sent is
+// usually a sign of client hung or DoS tarpit attack, so we want a legit message from the client)
+// For this project, because all "actions" are stateless, there are no need to implement the connection
+// as TCP/IP (stream) based, so we can just use UDP/IP (datagram) based connection if desired.
+// Wheter it's TCP/IP or UDP, in a stateless implementation, there are no legit (ordered, sequential) messages which must come
+// after another message, hence we need to require heartbeat/keepalive from the client EVEN if the client
+// has already sent a legit message few milliseconds ago (the server will disconnect the client if it doesn't 
+// receive a heartbeat/keepalive from the client within the heartbeat interval even if we just received a legit/legal
+// message from the client)
+// Also, if client sends a heartbeat in which its I.P. address is not the same as the last heartbeat, then
+// then the server will assume that until the client re-registers, the client will be dropped,
+// hence it is recommended that clients do NOT start their heartbeat (thread) until they have registered and
+// got back a "ready to accept heartbeats" response from the server
+syntax = "proto3";
+
+package heartbeat;
+
+// The service definition.
+service Heartbeat {
+    // Client sends a keepalive request to the server and gets a response
+    rpc KeepAlive (KeepAliveRequest) returns (KeepAliveResponse);
+}
+
+// The request message containing the client's ID; MAC address is used as client ID to
+// "assume" uniqueness (assumes there are no MAC address spoofings) and also assumes that
+// every client has a unique MAC address if running multiple clients (such as load-tests)
+// on the same machine, the client ID will be the same for all of them (same MAC address
+// for all of them) and the server will not be able to distinguish between them
+// in such case, we need a sub-string of hostname; in this case, as long as the server
+// is in the the test environment, it will ASSUME it's a load-tester and allow it.
+// In such case, the hostname is just to make the unique (as in, dictionary key) client ID
+// human-readable (as in, not MAC address); hostname can even be an IP address
+// on a non-load-tester client (on a load-tester, usually they all have same IP address)
+// Another workaround (if testing small number of clients, not for load-testing) is to
+// create each client in VM in which VM should create software emulated NIC driver
+// which will have a unique MAC address (and thus, unique client ID)
+message KeepAliveRequest {
+    // combination of these two are used as the KEY for dictionary lookup
+    string mac_as_client_id = 1;    // MAC address of the client as unique-key (i.e. key used by redis)
+    string hostname = 2;    // either hostname or IP address (though hostname is preferred because IP can easily be looked up from connection socket)
+}
+
+// The response message containing the server's status
+message KeepAliveResponse {
+    string server_status = 1;
+    // timestamp of the server's last heartbeat
+    // this is used to calculate the server's latency
+    // and also to determine if the server is down
+    // (i.e. if the server's last heartbeat is older than
+    // the heartbeat interval, then the server is down)
+    // this is also used to determine if the server is
+    // overloaded (i.e. if the server's last heartbeat
+    // is older than the heartbeat interval, then the
+    // server is overloaded)
+    string server_last_heartbeat = 2;
+    string server_heartbeat_interval = 3;   // this is deltaT in seconds and only here to indicate approximate deltaT
+
+    // next expected heartbeat from the client in absolute GMT time (UTC0 epoch time in seconds)
+    // in which if not heard by then, will drop the client
+    // it is in GMT and not local time because the server and client
+    // may be in different timezones
+    int64 client_next_heartbeat_epoch_utc0 = 4;
+
+
+
+}
